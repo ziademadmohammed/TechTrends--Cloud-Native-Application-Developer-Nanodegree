@@ -2,10 +2,17 @@ import sqlite3
 
 from flask import Flask, jsonify, json, render_template, request, url_for, redirect, flash
 from werkzeug.exceptions import abort
+from flask.wrappers import Response
+from logging import StreamHandler
+from datetime import datetime
+
+count = 0
 
 # Function to get a database connection.
 # This function connects to database with the name `database.db`
 def get_db_connection():
+    global count
+    count += 1
     connection = sqlite3.connect('database.db')
     connection.row_factory = sqlite3.Row
     return connection
@@ -36,13 +43,17 @@ def index():
 def post(post_id):
     post = get_post(post_id)
     if post is None:
+      app.logger.debug(
+            "post id \"{}\" does not exist.".format(post_id))
       return render_template('404.html'), 404
     else:
+      app.logger.info("Article \"{}\" successful".format(post["Title"]))
       return render_template('post.html', post=post)
 
 # Define the About Us page
 @app.route('/about')
 def about():
+    app.logger.info('About us page requested')
     return render_template('about.html')
 
 # Define the post creation functionality 
@@ -60,7 +71,7 @@ def create():
                          (title, content))
             connection.commit()
             connection.close()
-
+            app.logger.info("New Article by Title name : '{}'".format(title))
             return redirect(url_for('index'))
 
     return render_template('create.html')
@@ -86,4 +97,10 @@ def status():
 
 # start the application on port 3111
 if __name__ == "__main__":
-   app.run(host='0.0.0.0', port='3111')
+    # set logger to handle STDOUT and STDERR
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    handlers = [stderr_handler, stdout_handler]
+    logging.basicConfig(level=logging.DEBUG, handlers=handlers)
+
+    app.run(host='0.0.0.0', port='3111')
